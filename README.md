@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎯 NextPR
+# NextPR
 
 **Find GitHub issues you can actually merge.**
 
