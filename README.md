@@ -1,6 +1,6 @@
 <div align="center">
 
-# NextPR
+<img src="./NextPR%20Ink%20Brush%20Wordmark.png" alt="NextPR" width="320" />
 
 **Find GitHub issues you can actually merge.**
 
@@ -13,7 +13,7 @@ Personalized open-source issue discovery, ranked by language fit, difficulty, ma
 
 [Live Demo](#) · [Report Bug](../../issues) · [Request Feature](../../issues)
 
-<img src="./assets/screen.gif" alt="NextPR demo" width="800" />
+<img src="./screen.gif" alt="NextPR demo" width="800" />
 
 </div>
 
@@ -104,10 +104,13 @@ cd nextpr
 # 2. Install dependencies
 npm install
 
-# 3. Set up environment variables
+# 3. Start local services (e.g. MongoDB)
+docker compose up -d
+
+# 4. Set up environment variables
 cp .env.example .env.local
 
-# 4. Run the dev server
+# 5. Run the dev server
 npm run dev
 ```
 
@@ -141,17 +144,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```text
 nextpr/
-├── assets/          # README images and demo GIF
-├── src/
-│   ├── app/         # Next.js routes
-│   ├── components/  # UI components
-│   ├── lib/         # DB, auth, GitHub client
-│   └── ranking/     # Scoring logic
-├── .env.example
-└── package.json
+├── apps/                  # Application packages (monorepo)
+├── docker-compose.yml     # Local services (e.g. database)
+├── screen.gif             # README demo
+├── package.json           # Root workspace config
+├── .editorconfig
+├── .prettierrc.json
+└── README.md
 ```
 
-> Update this tree to match your actual layout.
+> Expand `apps/` with your actual packages (e.g. `web`, `api`).
 
 ---
 
