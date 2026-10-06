@@ -1,5 +1,7 @@
 # NextPR
 
+![NextPR Demo](screen.gif)
+
 Find GitHub issues you can actually merge. Issues are ranked for the signed-in user by language fit,
 maintainer responsiveness, difficulty and freshness.
 
