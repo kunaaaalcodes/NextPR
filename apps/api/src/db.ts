@@ -1,18 +1,25 @@
 import mongoose from "mongoose";
 import { config } from "./config";
 
-let connectionPromise: Promise<typeof mongoose> | undefined;
+mongoose.set("strictQuery", true);
 
-export function connectDb() {
-  mongoose.set("strictQuery", true);
-  if (mongoose.connection.readyState === 1) return Promise.resolve(mongoose);
+const connectionPromise = mongoose
+  .connect(config.MONGODB_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    family: 4,
+  })
+  .then((conn) => {
+    console.log("MongoDB connected");
+    return conn;
+  })
+  .catch((err) => {
+    console.error("MongoDB connection failed:", err.message);
+    throw err;
+  });
 
-  if (!connectionPromise) {
-    connectionPromise = mongoose.connect(config.MONGODB_URI).then((connection) => {
-      console.log("MongoDB connected");
-      return connection;
-    });
-  }
-
+export async function connectDb() {
+  if (mongoose.connection.readyState === 1) return mongoose;
   return connectionPromise;
 }

@@ -17,8 +17,7 @@ app.use(helmet());
 app.use(cors({ origin: config.FRONTEND_URL }));
 app.use(express.json({ limit: "100kb" }));
 
-// Vercel imports this Express app as a serverless function. Ensure the
-// database connection is ready before a route uses Mongoose.
+// Ensure DB is connected (module-level connection in serverless, lazy in local)
 app.use(async (_req, _res, next) => {
   try {
     await connectDb();
@@ -28,6 +27,9 @@ app.use(async (_req, _res, next) => {
   }
 });
 
+app.get("/", (_req, res) =>
+  res.json({ service: "NextPR API", status: "running", health: "/health" })
+);
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/auth", rateLimit({ windowMs: 60_000, limit: 20 }), authRoutes);
 app.use("/api", rateLimit({ windowMs: 60_000, limit: 120 }), issueRoutes, meRoutes);
@@ -49,7 +51,7 @@ function startScheduledCrawl() {
 if (!process.env.VERCEL) {
   connectDb()
     .then(() => {
-      app.listen(config.PORT, () => console.log(`API listening on port ${config.PORT}`));
+      app.listen(config.PORT, "0.0.0.0", () => console.log(`API listening on port ${config.PORT}`));
       startScheduledCrawl();
     })
     .catch((e) => {
