@@ -11,24 +11,31 @@ import issueRoutes from "./routes/issues";
 import meRoutes from "./routes/me";
 import { crawlIssues, isCrawling } from "./services/crawler";
 
-async function main() {
-  await connectDb();
+export const app = express();
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(cors({ origin: config.FRONTEND_URL }));
+app.use(express.json({ limit: "100kb" }));
 
-  const app = express();
-  app.set("trust proxy", 1);
-  app.use(helmet());
-  app.use(cors({ origin: config.FRONTEND_URL }));
-  app.use(express.json({ limit: "100kb" }));
+// Vercel imports this Express app as a serverless function. Ensure the
+// database connection is ready before a route uses Mongoose.
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDb();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
-  app.get("/health", (_req, res) => res.json({ status: "ok" }));
-  app.use("/auth", rateLimit({ windowMs: 60_000, limit: 20 }), authRoutes);
-  app.use("/api", rateLimit({ windowMs: 60_000, limit: 120 }), issueRoutes, meRoutes);
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.use("/auth", rateLimit({ windowMs: 60_000, limit: 20 }), authRoutes);
+app.use("/api", rateLimit({ windowMs: 60_000, limit: 120 }), issueRoutes, meRoutes);
 
-  app.use(notFound);
-  app.use(errorHandler);
+app.use(notFound);
+app.use(errorHandler);
 
-  app.listen(config.PORT, () => console.log(`API running on http://localhost:${config.PORT}`));
-
+function startScheduledCrawl() {
   cron.schedule(config.CRAWL_CRON, () => {
     if (isCrawling()) return;
     crawlIssues()
@@ -37,7 +44,18 @@ async function main() {
   });
 }
 
-main().catch((e) => {
-  console.error("Fatal startup error", e);
-  process.exit(1);
-});
+// Vercel functions must export a handler and must not call app.listen().
+// node-cron also is not reliable in serverless instances, so keep it local.
+if (!process.env.VERCEL) {
+  connectDb()
+    .then(() => {
+      app.listen(config.PORT, () => console.log(`API listening on port ${config.PORT}`));
+      startScheduledCrawl();
+    })
+    .catch((e) => {
+      console.error("Fatal startup error", e);
+      process.exit(1);
+    });
+}
+
+export default app;
