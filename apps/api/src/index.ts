@@ -3,6 +3,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import cron from "node-cron";
+import mongoose from "mongoose";
 import { config } from "./config";
 import { connectDb } from "./db";
 import { errorHandler, notFound } from "./middleware/error";
@@ -30,7 +31,16 @@ app.use(async (_req, _res, next) => {
 app.get("/", (_req, res) =>
   res.json({ service: "NextPR API", status: "running", health: "/health" })
 );
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/health", async (_req, res) => {
+  try {
+    await connectDb();
+    const state = mongoose.connection.readyState;
+    const states = ["disconnected", "connected", "connecting", "disconnecting"];
+    res.json({ status: "ok", db: states[state] });
+  } catch (e) {
+    res.status(503).json({ status: "degraded", db: "error", error: (e as Error).message });
+  }
+});
 app.use("/auth", rateLimit({ windowMs: 60_000, limit: 20 }), authRoutes);
 app.use("/api", rateLimit({ windowMs: 60_000, limit: 120 }), issueRoutes, meRoutes);
 

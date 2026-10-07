@@ -1,4 +1,10 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+if (process.env.NODE_ENV === "production" && !configuredApiUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL must be set when building the production web app.");
+}
+
+export const API_URL = (configuredApiUrl || "http://localhost:4000").replace(/\/+$/, "");
 export const SIGN_IN_URL = `${API_URL}/auth/github`;
 const TOKEN_KEY = "nextpr_token";
 

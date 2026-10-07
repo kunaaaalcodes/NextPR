@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": "next start",
     "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "motion": "^14.0.0",
