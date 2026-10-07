@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { z } from "zod";
 import { HttpError, asyncHandler } from "../lib/http";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { config } from "../config";
 import { Issue } from "../models/Issue";
 import { Repo } from "../models/Repo";
 import { User } from "../models/User";
@@ -194,10 +195,14 @@ router.get(
 );
 
 // Admin: trigger a crawl manually. Header: x-admin-key
+// Vercel Cron: triggers via vercel.json schedule, verifies x-vercel-cron-secret
 router.post(
   "/admin/crawl",
-  requireAdmin,
   asyncHandler(async (req, res) => {
+    const isCron = req.headers["x-vercel-cron-secret"] === process.env.CRON_SECRET;
+    const isAdmin = req.headers["x-admin-key"] === config.ADMIN_KEY;
+    if (!isCron && !isAdmin) throw new HttpError(403, "Forbidden");
+
     if (isCrawling()) throw new HttpError(409, "Crawl already in progress");
     const languages = z
       .object({ languages: z.array(z.string()).optional() })
