@@ -21,8 +21,9 @@ export const DEFAULT_LANGUAGES = [
 ];
 
 const STALE_AFTER_DAYS = 120;
-const MAX_COMMENTS = 20;
+const MAX_COMMENTS = 50;
 const REPO_REFRESH_MS = 24 * 3600 * 1000;
+const PER_PAGE = 100;
 const SEARCH_LABEL_GROUPS = [
   ["good first issue", "good-first-issue", "first-timers-only", "beginner"],
   ["bounty", "bug bounty", "bounty issue"],
@@ -39,6 +40,7 @@ const SEARCH_LABEL_GROUPS = [
     "performance",
     "security",
   ],
+  [],
 ];
 let running = false;
 
@@ -122,11 +124,15 @@ export async function crawlIssues(languages?: string[]): Promise<CrawlResult> {
     for (const lang of langs) {
       let searchedLanguage = false;
       for (const labelGroup of SEARCH_LABEL_GROUPS) {
-        const q = `label:${labelGroup.map((label) => `"${label}"`).join(",")} state:open is:issue no:assignee language:"${lang}"`;
+        const hasLabels = labelGroup.length > 0;
+        const labelQuery = hasLabels
+          ? `label:${labelGroup.map((label) => `"${label}"`).join(",")} `
+          : "";
+        const q = `${labelQuery}state:open is:issue no:assignee language:"${lang}"`;
         let items: GhSearchIssue[];
         try {
           const data = await gh<{ items: GhSearchIssue[] }>(
-            `/search/issues?q=${encodeURIComponent(q)}&sort=updated&order=desc&per_page=50`,
+            `/search/issues?q=${encodeURIComponent(q)}&sort=updated&order=desc&per_page=${PER_PAGE}`,
             config.GITHUB_TOKEN
           );
           items = data.items;
@@ -136,24 +142,29 @@ export async function crawlIssues(languages?: string[]): Promise<CrawlResult> {
             result.rateLimited = true;
             break;
           }
+          const err = e as Error & { cause?: Error };
           console.error(
-            `Search failed for ${lang} labels ${labelGroup.join(", ")}:`,
-            (e as Error).message
+            `Search failed for ${lang}${hasLabels ? ` labels ${labelGroup.join(", ")}` : " (no label filter)"}:`,
+            err.message,
+            err.cause ? ` (cause: ${err.cause.message})` : ""
           );
-          await sleep(2500);
+          await sleep(2000);
           continue;
         }
 
-        const requestedLabels = new Set(labelGroup.map((label) => label.toLowerCase()));
+        const requestedLabels = hasLabels
+          ? new Set(labelGroup.map((label) => label.toLowerCase()))
+          : null;
         for (const item of items) {
           const labels = item.labels
             .map((l) => (typeof l === "string" ? l : (l.name ?? "")))
             .filter(Boolean);
           if (
-            !labels.some((label) => requestedLabels.has(label.toLowerCase())) ||
-            seenIssues.has(item.id)
+            requestedLabels &&
+            !labels.some((label) => requestedLabels.has(label.toLowerCase()))
           )
             continue;
+          if (seenIssues.has(item.id)) continue;
           seenIssues.add(item.id);
 
           try {
