@@ -2,7 +2,7 @@
 
 Backend for NextPR: recommends GitHub issues you can actually get merged, ranked for the signed-in user.
 
-**Stack:** Node.js, Express, TypeScript, MongoDB (Mongoose), GitHub OAuth + REST API, JWT, node-cron.
+**Stack:** Node.js, Express, TypeScript, MongoDB (Mongoose), GitHub OAuth + REST API, JWT.
 
 ## Setup
 
@@ -15,9 +15,40 @@ Backend for NextPR: recommends GitHub issues you can actually get merged, ranked
 4. `npm install && npm run dev`
 5. Fill the database with issues:
    `curl -X POST localhost:4000/api/admin/crawl -H "x-admin-key: <ADMIN_KEY>"`
-   (it also runs automatically on the `CRAWL_CRON` schedule, hourly by default)
 
 Docker: `docker compose up --build`
+
+## Scheduled Crawling (GitHub Actions)
+
+The crawler runs automatically via **GitHub Actions** (`.github/workflows/crawl.yml`) on an hourly schedule. This avoids Vercel's serverless function timeout limits.
+
+### Required GitHub Secrets
+
+Add these in your repo: Settings → Secrets and variables → Actions → New repository secret
+
+| Secret | Description |
+|--------|-------------|
+| `MONGODB_URI` | MongoDB connection string (Atlas recommended) |
+| `GITHUB_TOKEN` | GitHub Personal Access Token (classic, no scopes needed) |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App Client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App Client Secret |
+| `GITHUB_CALLBACK_URL` | OAuth callback URL (e.g. `https://your-app.vercel.app/auth/github/callback`) |
+| `JWT_SECRET` | 32+ char random string (`openssl rand -hex 32`) |
+| `ENCRYPTION_KEY` | 64 hex chars (`openssl rand -hex 32`) |
+| `ADMIN_KEY` | 16+ char random string for admin API access |
+| `CRON_SECRET` | Random string for cron verification (optional) |
+| `FRONTEND_URL` | Your frontend URL (e.g. `https://your-app.vercel.app`) |
+
+### Manual Trigger
+
+Run the crawler manually:
+```bash
+# Local
+npm run crawl
+
+# Via GitHub Actions UI
+# Go to Actions → Crawl GitHub Issues → Run workflow
+```
 
 ## How the frontend uses it
 

@@ -1,0 +1,47 @@
+name: Crawl GitHub Issues
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    name: Crawl Issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+      GITHUB_CALLBACK_URL: ${{ secrets.GITHUB_CALLBACK_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      CRAWL_CRON: "0 * * * *"
+      CRAWL_LANGUAGES: "TypeScript,JavaScript,Python,Go,Rust,Java,C++,C#,PHP,Ruby,Kotlin,Swift"
+      NODE_ENV: production
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Run crawler
+        working-directory: apps/api
+        run: npm run crawl
