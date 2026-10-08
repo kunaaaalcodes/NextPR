@@ -45,4 +45,4 @@ jobs:
 
       - name: Run crawler
         working-directory: apps/api
-        run: npm run crawl
+        run: npx tsx scripts/crawl.ts
