@@ -234,8 +234,8 @@ button {
 .nav-github {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  color: var(--ink-soft);
+  gap: 6px;
+  color: var(--muted);
   transition: color 0.18s ease;
 }
 .nav-github:hover {
