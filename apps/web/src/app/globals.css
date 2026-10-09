@@ -231,6 +231,16 @@ button {
   gap: 19px;
   flex: 0 0 auto;
 }
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  transition: color 0.18s ease;
+}
+.nav-github:hover {
+  color: var(--ink);
+}
 .nav-login {
   color: var(--ink-soft);
   font-size: 13px;
