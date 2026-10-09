@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SIGN_IN_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -28,6 +28,8 @@ export default function Navbar() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const updateScroll = () => setScrolled(window.scrollY > 12);
@@ -37,6 +39,7 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => setUserMenuOpen(false), [pathname]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -47,9 +50,28 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setUserMenuOpen(false);
+    };
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("mousedown", closeOnOutsideClick);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("mousedown", closeOnOutsideClick);
+    };
+  }, [userMenuOpen]);
+
   const handleLogout = () => {
     logout();
     setMenuOpen(false);
+    setUserMenuOpen(false);
     router.replace("/");
   };
 
@@ -114,16 +136,69 @@ export default function Navbar() {
           {loading ? (
             <span className="nav-loading" aria-label="Checking sign in status" />
           ) : user ? (
-            <div className="nav-user">
-              {user.avatarUrl && (
-                <Image src={user.avatarUrl} alt="" width={30} height={30} className="nav-avatar" />
-              )}
-              <Link className="nav-login" href="/dashboard">
-                {user.login}
-              </Link>
-              <button className="nav-logout" onClick={handleLogout}>
-                Sign out
+            <div className="nav-user" ref={userMenuRef}>
+              <button
+                className="nav-user-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                aria-label={`Account menu for ${user.login}`}
+                onClick={() => setUserMenuOpen((open) => !open)}
+              >
+                {user.avatarUrl && (
+                  <Image
+                    src={user.avatarUrl}
+                    alt=""
+                    width={30}
+                    height={30}
+                    className="nav-avatar"
+                  />
+                )}
+                <span className="nav-user-name">{user.login}</span>
+                <span className={`nav-caret${userMenuOpen ? " is-open" : ""}`} aria-hidden="true">
+                  ▾
+                </span>
               </button>
+              {userMenuOpen && (
+                <div className="nav-dropdown" role="menu">
+                  <div className="nav-dropdown-head">
+                    {user.avatarUrl && (
+                      <Image
+                        src={user.avatarUrl}
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="nav-avatar"
+                      />
+                    )}
+                    <span className="nav-dropdown-name">{user.login}</span>
+                  </div>
+                  <Link
+                    className="nav-dropdown-item"
+                    href="/dashboard"
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    My matches
+                  </Link>
+                  <Link
+                    className="nav-dropdown-item"
+                    href="/saved"
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    Saved
+                  </Link>
+                  <button
+                    className="nav-dropdown-item nav-dropdown-signout"
+                    type="button"
+                    role="menuitem"
+                    onClick={handleLogout}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>
