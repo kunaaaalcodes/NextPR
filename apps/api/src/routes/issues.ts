@@ -79,7 +79,7 @@ function baseFilter(q: z.infer<typeof listQuery>) {
   return f;
 }
 
-function issueSort(sort: "relevance" | "date") {
+function issueSort(sort: "relevance" | "date"): Record<string, 1 | -1> {
   return sort === "date"
     ? { ghCreatedAt: -1 as const, ghUpdatedAt: -1 as const }
     : { repoStars: -1 as const, ghUpdatedAt: -1 as const };
@@ -159,12 +159,12 @@ router.get(
       if (rx.length) filter.language = { $in: rx };
     }
 
+    const candidateSort: Record<string, 1 | -1> =
+      q.sort === "date"
+        ? { ghCreatedAt: -1, ghUpdatedAt: -1 }
+        : { ghUpdatedAt: -1 };
     const candidates = await Issue.find(filter)
-      .sort(
-        q.sort === "date"
-          ? { ghCreatedAt: -1, ghUpdatedAt: -1 }
-          : { ghUpdatedAt: -1 }
-      )
+      .sort(candidateSort)
       .limit(400)
       .lean();
     const repos = await Repo.find({
