@@ -12,6 +12,7 @@ import { ScoringProfile, mergeChance, scoreIssue } from "../services/scoring";
 
 const router = Router();
 const FRESH_WINDOW_MS = 14 * 24 * 3600 * 1000;
+const WEEK_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 const listQuery = z.object({
   language: z.string().optional(), // comma separated
@@ -19,6 +20,8 @@ const listQuery = z.object({
   label: z.string().optional(),
   minResponsiveness: z.coerce.number().min(0).max(100).optional(),
   minStars: z.coerce.number().int().min(0).optional(),
+  sort: z.enum(["relevance", "date"]).default("relevance"),
+  createdWithin: z.enum(["week"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -32,6 +35,7 @@ const toCard = <E extends object>(i: any, repo: any, extra: E) => ({
   labels: i.labels,
   difficulty: i.difficulty,
   comments: i.comments,
+  createdAt: i.ghCreatedAt,
   updatedAt: i.ghUpdatedAt,
   repo: {
     fullName: i.repoFullName,
@@ -47,6 +51,9 @@ function baseFilter(q: z.infer<typeof listQuery>) {
     status: "open",
     crawledAt: { $gte: new Date(Date.now() - FRESH_WINDOW_MS) },
   };
+  if (q.createdWithin === "week") {
+    f.ghCreatedAt = { $gte: new Date(Date.now() - WEEK_WINDOW_MS) };
+  }
   if (q.language)
     f.language = {
       $in: q.language
@@ -72,15 +79,29 @@ function baseFilter(q: z.infer<typeof listQuery>) {
   return f;
 }
 
+function issueSort(sort: "relevance" | "date") {
+  return sort === "date"
+    ? { ghCreatedAt: -1 as const, ghUpdatedAt: -1 as const }
+    : { repoStars: -1 as const, ghUpdatedAt: -1 as const };
+}
+
 // Public browse (no login)
 router.get(
   "/issues",
   asyncHandler(async (req, res) => {
     const q = listQuery.parse(req.query);
     const filter = baseFilter(q);
+    if (q.minResponsiveness !== undefined) {
+      const responsiveRepos = await Repo.find({
+        "responsiveness.score": { $gte: q.minResponsiveness },
+      })
+        .distinct("fullName")
+        .exec();
+      filter.repoFullName = { $in: responsiveRepos };
+    }
     const [issues, total] = await Promise.all([
       Issue.find(filter)
-        .sort({ ghUpdatedAt: -1 })
+        .sort(issueSort(q.sort))
         .skip((q.page - 1) * q.pageSize)
         .limit(q.pageSize)
         .lean(),
@@ -138,7 +159,14 @@ router.get(
       if (rx.length) filter.language = { $in: rx };
     }
 
-    const candidates = await Issue.find(filter).sort({ ghUpdatedAt: -1 }).limit(400).lean();
+    const candidates = await Issue.find(filter)
+      .sort(
+        q.sort === "date"
+          ? { ghCreatedAt: -1, ghUpdatedAt: -1 }
+          : { ghUpdatedAt: -1 }
+      )
+      .limit(400)
+      .lean();
     const repos = await Repo.find({
       fullName: { $in: [...new Set(candidates.map((c) => c.repoFullName))] },
     }).lean();
@@ -164,7 +192,15 @@ router.get(
         });
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        if (q.sort === "date") {
+          return (
+            new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime() ||
+            b.score - a.score
+          );
+        }
+        return b.score - a.score;
+      });
 
     const start = (q.page - 1) * q.pageSize;
     res.json({

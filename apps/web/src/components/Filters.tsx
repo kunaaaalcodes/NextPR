@@ -2,6 +2,8 @@ import type { ChangeEvent } from "react";
 import { LANGUAGES } from "@/lib/types";
 
 export interface FilterState {
+  sort: string;
+  createdWithin: string;
   language: string;
   difficulty: string;
   label: string;
@@ -9,6 +11,8 @@ export interface FilterState {
   minStars: string;
 }
 export const EMPTY_FILTERS: FilterState = {
+  sort: "relevance",
+  createdWithin: "",
   language: "",
   difficulty: "",
   label: "",
@@ -44,6 +48,24 @@ export default function Filters({ value, onChange, languageLabel = "All language
     onChange({ ...value, [key]: event.target.value });
   return (
     <div className="filters" role="group" aria-label="Filter issues">
+      <label className="filter-control">
+        <span>Sort by</span>
+        <select value={value.sort} onChange={set("sort")} aria-label="Sort issues">
+          <option value="relevance">Relevance</option>
+          <option value="date">Date added (newest)</option>
+        </select>
+      </label>
+      <label className="filter-control">
+        <span>Added</span>
+        <select
+          value={value.createdWithin}
+          onChange={set("createdWithin")}
+          aria-label="Filter by when the issue was created"
+        >
+          <option value="">Any time</option>
+          <option value="week">Past week</option>
+        </select>
+      </label>
       <label className="filter-control">
         <span>Language</span>
         <select value={value.language} onChange={set("language")} aria-label="Language">

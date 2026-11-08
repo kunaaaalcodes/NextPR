@@ -10,6 +10,7 @@ export interface IssueCardData {
   labels: string[];
   difficulty: Difficulty;
   comments: number;
+  createdAt?: string;
   updatedAt?: string;
   repo: { fullName: string; stars?: number; language?: string; responsiveness?: number };
   mergeChance: MergeChance;

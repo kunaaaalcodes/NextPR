@@ -21,6 +21,7 @@ const issueSchema = new Schema({
 });
 
 issueSchema.index({ status: 1, language: 1, ghUpdatedAt: -1 });
+issueSchema.index({ status: 1, ghCreatedAt: -1 });
 issueSchema.index({ repoStars: 1 });
 
 export const Issue = model("Issue", issueSchema);

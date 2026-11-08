@@ -18,16 +18,6 @@ app.use(helmet());
 app.use(cors({ origin: config.FRONTEND_URL }));
 app.use(express.json({ limit: "100kb" }));
 
-// Ensure DB is connected (module-level connection in serverless, lazy in local)
-app.use(async (_req, _res, next) => {
-  try {
-    await connectDb();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
 app.get("/", (_req, res) =>
   res.json({ service: "NextPR API", status: "running", health: "/health" })
 );
@@ -41,6 +31,18 @@ app.get("/health", async (_req, res) => {
     res.status(503).json({ status: "degraded", db: "error", error: (e as Error).message });
   }
 });
+
+// Database-backed routes stay available for retries, while health endpoints can report
+// whether MongoDB is reachable instead of being intercepted by this middleware.
+app.use(async (_req, res, next) => {
+  try {
+    await connectDb();
+    next();
+  } catch {
+    res.status(503).json({ error: "Database unavailable" });
+  }
+});
+
 app.use("/auth", rateLimit({ windowMs: 60_000, limit: 20 }), authRoutes);
 app.use("/api", rateLimit({ windowMs: 60_000, limit: 120 }), issueRoutes, meRoutes);
 
@@ -50,7 +52,8 @@ app.use(errorHandler);
 function startScheduledCrawl() {
   cron.schedule(config.CRAWL_CRON, () => {
     if (isCrawling()) return;
-    crawlIssues()
+    connectDb()
+      .then(() => crawlIssues())
       .then((r) => console.log("Scheduled crawl finished", r))
       .catch((e) => console.error("Scheduled crawl failed", e));
   });
@@ -59,15 +62,11 @@ function startScheduledCrawl() {
 // Vercel functions must export a handler and must not call app.listen().
 // node-cron also is not reliable in serverless instances, so keep it local.
 if (!process.env.VERCEL) {
-  connectDb()
-    .then(() => {
-      app.listen(config.PORT, "0.0.0.0", () => console.log(`API listening on port ${config.PORT}`));
-      startScheduledCrawl();
-    })
-    .catch((e) => {
-      console.error("Fatal startup error", e);
-      process.exit(1);
-    });
+  app.listen(config.PORT, "0.0.0.0", () => console.log(`API listening on port ${config.PORT}`));
+  startScheduledCrawl();
+  connectDb().catch((e) => {
+    console.error("MongoDB unavailable; API started in degraded mode:", e.message);
+  });
 }
 
 export default app;

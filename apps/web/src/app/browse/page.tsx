@@ -30,17 +30,25 @@ export default function Browse() {
     setLoading(true);
     setError("");
     try {
-      setResult(
-        await api<Paged<IssueCardData>>(
-          `/api/issues${qs({ ...filters, minResponsiveness: filters.minResponsiveness || undefined, minStars: filters.minStars || undefined, page, pageSize: 15 })}`
-        )
-      );
+      const personalized = filters.sort === "relevance" && !!user;
+      const endpoint = personalized ? "/api/issues/matches" : "/api/issues";
+      const query = qs({
+        ...filters,
+        minResponsiveness: filters.minResponsiveness || undefined,
+        minStars: filters.minStars || undefined,
+        page,
+        pageSize: 15,
+      });
+      const pageData = await api<Paged<IssueCardData>>(`${endpoint}${query}`, {
+        auth: personalized,
+      });
+      setResult(pageData);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [filters, page]);
+  }, [filters, page, user]);
 
   useEffect(() => {
     void load();
